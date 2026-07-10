@@ -7,10 +7,7 @@ clients = {}
 
 @app.get("/")
 async def root():
-    return {
-        "name": "SecureComm Signaling Server",
-        "status": "running"
-    }
+    return {"status": "ok"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
