@@ -10,4 +10,4 @@ COPY . .
 
 ENV PORT=8080
 
-CMD ["gunicorn","-k","geventwebsocket.gunicorn.workers.GeventWebSocketWorker","-b","0.0.0.0:8080","app:app"]
+CMD uvicorn app:app --host 0.0.0.0 --port ${PORT}
