@@ -1,5 +1,15 @@
 FROM coturn/coturn:latest
 
-COPY turnserver.conf /etc/coturn/turnserver.conf
+RUN apt-get update && \
+    apt-get install -y python3 && \
+    apt-get clean
 
-CMD ["turnserver", "-c", "/etc/coturn/turnserver.conf", "-o", "--no-cli", "--log-file=stdout"]
+WORKDIR /app
+
+COPY turnserver.conf /etc/coturn/turnserver.conf
+COPY health.py /app/health.py
+COPY start.sh /app/start.sh
+
+RUN chmod +x /app/start.sh
+
+ENTRYPOINT ["/app/start.sh"]
