@@ -1,54 +1,41 @@
-from flask import Flask
-from flask_sock import Sock
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import os
 
-app = Flask(__name__)
-sock = Sock(app)
+app = FastAPI()
 
 clients = {}
 
-@app.route("/")
-def home():
+@app.get("/")
+async def root():
     return {
         "name": "SecureComm Signaling Server",
         "status": "running"
     }
 
-@sock.route("/ws")
-def websocket(ws):
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
 
     client_id = None
 
-    while True:
-        data = ws.receive()
+    try:
+        while True:
+            message = await websocket.receive_text()
 
-        if data is None:
-            break
+            if client_id is None:
+                client_id = message
+                clients[client_id] = websocket
+                continue
 
-        if client_id is None:
-            client_id = data
-            clients[client_id] = ws
-            print("Connected:", client_id)
-            continue
+            if ":" in message:
+                target, data = message.split(":", 1)
 
-        if ":" in data:
+                if target in clients:
+                    await clients[target].send_text(data)
 
-            target, message = data.split(":",1)
+    except WebSocketDisconnect:
+        pass
 
-            if target in clients:
-                try:
-                    clients[target].send(message)
-                except:
-                    pass
-
-    if client_id in clients:
-        del clients[client_id]
-
-if __name__ == "__main__":
-
-    port = int(os.environ.get("PORT",8080))
-
-    app.run(
-        host="0.0.0.0",
-        port=port
-    )
+    finally:
+        if client_id in clients:
+            del clients[client_id]
