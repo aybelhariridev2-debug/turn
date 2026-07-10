@@ -1,5 +1,3 @@
-
-Flask
-Flask-Sock
-gunicorn
-gevent
+fastapi
+uvicorn[standard]
+websockets
