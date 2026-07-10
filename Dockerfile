@@ -1,15 +1,13 @@
-FROM ubuntu:24.04
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt update && \
-    apt install -y \
-    python3 \
-    coturn && \
-    apt clean
+FROM python:3.12-slim
 
 WORKDIR /app
 
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
 
-CMD ["python3", "start.py"]
+ENV PORT=8080
+
+CMD ["gunicorn","-k","geventwebsocket.gunicorn.workers.GeventWebSocketWorker","-b","0.0.0.0:8080","app:app"]
