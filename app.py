@@ -631,10 +631,16 @@ def stats():
     return jsonify(online=online, online_count=len(online), users=users, recent=recent,
                    blocks=len(chain.chain), valid=chain.is_valid(), uptime=int(now - START_TS))
 
-@app.get("/health")
+@app.route("/health")
 def health():
-    return jsonify(status="ok", peers=len(peers), chain_valid=chain.is_valid(),
-                   blocks=len(chain.chain), auth_required=REQUIRE_AUTH, registration_open=REGISTRATION_OPEN)
+    return jsonify(
+        status="ok",
+        peers=len(peers),
+        chain_valid=chain.is_valid(),
+        blocks=len(chain.chain),
+        auth_required=REQUIRE_AUTH,
+        registration_open=REGISTRATION_OPEN,
+    )
 
 @app.post("/proof")
 def anchor_proof():
