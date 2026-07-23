@@ -1,4 +1,3 @@
-
 """SecureComm — single-file server: blockchain auth + token-gated signaling relay.
 
 ONE process, ONE port. Users register/login (HTTP) to get a token; the WebSocket relay
@@ -434,6 +433,10 @@ peer_since = {}
 # room_id -> {"name", "owner", "created", "sockets": set(ws), "history": [last N messages]}
 rooms = {}
 ROOM_HISTORY = 50
+# Room attachments: base64 payload cap (~10 MB binary -> ~13.4 MB base64) and the wire prefixes
+# that identify media, so history can store a placeholder instead of the whole payload.
+ROOM_BODY_MAX = 14_000_000
+MEDIA_PREFIXES = ("SCRIMG:", "SCRAUD:", "SCRVID:", "SCRFILE:")
 
 def _room_public(rid, r):
     return {"id": rid, "name": r["name"], "owner": r.get("owner", "?"),
@@ -893,9 +896,23 @@ def ws(ws):
             if mtype == "room_msg":
                 rid = msg.get("room"); r = rooms.get(rid)
                 if r is not None and ws in r["sockets"]:
-                    out = {"type": "room_msg", "room": rid, "from": my_id, "body": msg.get("body", ""), "t": int(time.time())}
-                    r["history"].append(out); r["history"][:] = r["history"][-ROOM_HISTORY:]
+                    body = msg.get("body", "")
+                    if len(body) > ROOM_BODY_MAX:
+                        try: ws.send(json.dumps({"type": "error", "error": "attachment too large (max ~10 MB)"}))
+                        except Exception: pass
+                        continue
+                    out = {"type": "room_msg", "room": rid, "from": my_id, "body": body, "t": int(time.time())}
                     _broadcast_room(rid, out)   # everyone in the room, including the sender's other devices
+                    # Only TEXT goes into the replayed history. Media payloads are large (base64) and
+                    # 50 of them would pin hundreds of MB in memory, so we keep a light placeholder
+                    # instead — late joiners see that a file was shared without us buffering it.
+                    if body.startswith(MEDIA_PREFIXES):
+                        head = body.split(":", 3)
+                        label = head[1] if len(head) > 1 else "attachment"
+                        r["history"].append({**out, "body": "SCRNOTE:" + label})
+                    else:
+                        r["history"].append(out)
+                    r["history"][:] = r["history"][-ROOM_HISTORY:]
                 continue
             to = msg.get("to")
             if to and peers.get(to):
